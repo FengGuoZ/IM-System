@@ -5,6 +5,7 @@ import (
 	"io"
 	"net"
 	"sync"
+	"time"
 )
 
 type Server struct {
@@ -59,6 +60,9 @@ func (s *Server) Handler(conn net.Conn) {
 
 	user.Online()
 
+	//
+	isAlive := make(chan bool)
+
 	// 接受客户端传递的消息
 	go func() {
 		buf := make([]byte, 4096)
@@ -76,14 +80,30 @@ func (s *Server) Handler(conn net.Conn) {
 
 			// 提取用户输入的信息（去除末尾\n）
 			msg := string(buf[:n-1])
-
 			// 用户针对msg进行处理
 			user.DoMessage(msg)
+
+			// 收到任何消息都表明用户活跃，重制超时时间
+			isAlive <- true
 		}
 	}()
 
-	// 当前handler阻塞
-	select {}
+	// 当前Handler阻塞
+	for {
+		select {
+		case <-isAlive:
+		// 当前用户活跃，应重制定时器
+		// 不用做任何事，会顺序执行到下一句"time.After(time.Second * 10)"部分
+		case <-time.After(time.Second * 10):
+			// 当前用户已超时
+			user.SendMessage("你因超时未发言被提出聊天室\n")
+			// 回收资源
+			close(user.C)
+			user.Conn.Close() // 会自动触发user.Offline()，清理s.OnlineMap信息
+			return            // 退出当前Handler
+		}
+	}
+
 }
 
 // Start 启动服务接口
