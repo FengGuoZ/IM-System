@@ -52,9 +52,23 @@ func (u *User) Offline() {
 	u.server.BroadCast(u, "已下线")
 }
 
-// 处理用户消息的业务
+// SendMessage 给当前用户发消息
+func (u *User) SendMessage(msg string) {
+	u.Conn.Write([]byte(msg))
+}
+
+// DoMessage 处理用户消息的业务
 func (u *User) DoMessage(msg string) {
-	u.server.BroadCast(u, msg)
+	if msg == "who" {
+		u.server.mapLock.Lock()
+		for _, user := range u.server.OnlineMap {
+			sendMsg := "[" + user.Addr + "]" + user.Name + ":" + "在线...\n"
+			u.Conn.Write([]byte(sendMsg))
+		}
+		u.server.mapLock.Unlock()
+	} else {
+		u.server.BroadCast(u, msg)
+	}
 }
 
 // ListenMessage 监听当前user chan的方法，一但有消息，立刻发送给客户端（向客户端conn写位置）
