@@ -54,17 +54,10 @@ func (s *Server) BroadCast(u *User, msg string) {
 // Handler conn业务处理逻辑的go程(连接建立时的处理 + 循环从客户端conn读数据)
 func (s *Server) Handler(conn net.Conn) {
 	// 当前连接业务
-	// fmt.Println("连接建立成功")
+	// 新建1个用户
+	user := NewUser(conn, s)
 
-	user := NewUser(conn)
-
-	// 用户连接后加入OnlineMap中
-	s.mapLock.Lock()
-	s.OnlineMap[user.Name] = user
-	s.mapLock.Unlock()
-
-	// 广播用户上线消息
-	s.BroadCast(user, "已上线")
+	user.Online()
 
 	// 接受客户端传递的消息
 	go func() {
@@ -72,7 +65,8 @@ func (s *Server) Handler(conn net.Conn) {
 		for {
 			n, err := conn.Read(buf)
 			if n == 0 {
-				s.BroadCast(user, "下线")
+				// 对端关闭socket，用户下线
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -83,8 +77,8 @@ func (s *Server) Handler(conn net.Conn) {
 			// 提取用户输入的信息（去除末尾\n）
 			msg := string(buf[:n-1])
 
-			// 将得到的信息进行广播
-			s.BroadCast(user, msg)
+			// 用户针对msg进行处理
+			user.DoMessage(msg)
 		}
 	}()
 
