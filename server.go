@@ -54,7 +54,7 @@ func (s *Server) BroadCast(u *User, msg string) {
 // Handler conn业务处理逻辑的go程(连接建立时的处理 + 循环从客户端conn读数据)
 func (s *Server) Handler(conn net.Conn) {
 	// 当前连接业务
-	// 新建1个用户
+	// 新建1个用户,默认以userAddr为用户名
 	user := NewUser(conn, s)
 
 	user.Online()

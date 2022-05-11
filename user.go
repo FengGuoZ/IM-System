@@ -1,6 +1,9 @@
 package main
 
-import "net"
+import (
+	"net"
+	"strings"
+)
 
 type User struct {
 	Name string
@@ -59,14 +62,31 @@ func (u *User) SendMessage(msg string) {
 
 // DoMessage 处理用户消息的业务
 func (u *User) DoMessage(msg string) {
-	if msg == "who" {
+	if msg == "who" { // 在线用户查询功能
 		u.server.mapLock.Lock()
 		for _, user := range u.server.OnlineMap {
 			sendMsg := "[" + user.Addr + "]" + user.Name + ":" + "在线...\n"
-			u.Conn.Write([]byte(sendMsg))
+			u.SendMessage(sendMsg)
 		}
 		u.server.mapLock.Unlock()
-	} else {
+	} else if len(msg) > 7 && msg[0:7] == "rename|" { // 用户名修改功能
+		// 消息格式：rename|张三
+		newName := strings.Split(msg, "|")[1]
+
+		// 判断name是否存在(纯查询不用加锁)
+		_, OK := u.server.OnlineMap[newName]
+		if OK {
+			u.SendMessage("当前用户名被占用\n")
+		} else {
+			u.server.mapLock.Lock()
+			delete(u.server.OnlineMap, u.Name)
+			u.server.OnlineMap[newName] = u
+			u.server.mapLock.Unlock()
+
+			u.Name = newName
+			u.SendMessage("您已经更新用户名：" + u.Name + "\n")
+		}
+	} else { // 默认广播功能
 		u.server.BroadCast(u, msg)
 	}
 }
