@@ -26,10 +26,10 @@ func NewUser(conn net.Conn) *User {
 	return user
 }
 
-// ListenMessage 监听当前user chan的方法，一但有消息，立刻发送给客户端
+// ListenMessage 监听当前user chan的方法，一但有消息，立刻发送给客户端（向客户端conn写位置）
 func (u *User) ListenMessage() {
 	for {
 		msg := <-u.C
-		u.Conn.Write([]byte(msg + "\n"))
+		_, _ = u.Conn.Write([]byte(msg + "\n"))
 	}
 }
