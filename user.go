@@ -8,7 +8,7 @@ import (
 type User struct {
 	Name string
 	Addr string
-	C    chan string
+	C    chan string // 用于接受广播消息
 	Conn net.Conn
 
 	server *Server
@@ -27,7 +27,7 @@ func NewUser(conn net.Conn, server *Server) *User {
 		server: server,
 	}
 
-	// 启动监听当前user channel循环的goroutine
+	// 启动循环监听广播channel的Go程
 	go user.ListenMessage()
 
 	return user
@@ -79,6 +79,7 @@ func (u *User) DoMessage(msg string) {
 			u.SendMessage("当前用户名被占用\n")
 		} else {
 			u.server.mapLock.Lock()
+			// 删除旧用户名，换上新用户名
 			delete(u.server.OnlineMap, u.Name)
 			u.server.OnlineMap[newName] = u
 			u.server.mapLock.Unlock()
@@ -86,6 +87,30 @@ func (u *User) DoMessage(msg string) {
 			u.Name = newName
 			u.SendMessage("您已经更新用户名：" + u.Name + "\n")
 		}
+	} else if len(msg) > 4 && msg[0:3] == "to|" {
+		// 消息格式：to|张三|消息内容
+
+		// 获取对方用户名
+		remoteName := strings.Split(msg, "|")[1]
+		if remoteName == "" {
+			u.SendMessage("消息格式不正确，正确格式为：\"to|目标用户名|消息内容\"\n")
+			return
+		}
+
+		// 根据用户名，得到对方User对象
+		remoteUser, ok := u.server.OnlineMap[remoteName]
+		if ok == false {
+			u.SendMessage("目标用户名不存在\n")
+		}
+
+		// 获取消息内容，发送给对端
+		content := strings.Split(msg, "|")[2]
+		if content == "" {
+			u.SendMessage("无消息内容，请重新发送\n")
+			return
+		}
+		remoteUser.SendMessage(u.Name + "对您说：" + content + "\n")
+
 	} else { // 默认广播功能
 		u.server.BroadCast(u, msg)
 	}

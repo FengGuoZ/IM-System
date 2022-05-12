@@ -45,7 +45,7 @@ func (s *Server) ListenMessage() {
 	}
 }
 
-// BroadCast 广播用户上线的方法
+// BroadCast 广播消息
 func (s *Server) BroadCast(u *User, msg string) {
 	// 拼接出完整消息
 	sendMsg := "[" + u.Addr + "]" + u.Name + ":" + msg
@@ -60,7 +60,7 @@ func (s *Server) Handler(conn net.Conn) {
 
 	user.Online()
 
-	//
+	// 用于重制超时时间
 	isAlive := make(chan bool)
 
 	// 接受客户端传递的消息
@@ -94,7 +94,7 @@ func (s *Server) Handler(conn net.Conn) {
 		case <-isAlive:
 		// 当前用户活跃，应重制定时器
 		// 不用做任何事，会顺序执行到下一句"time.After(time.Second * 10)"部分
-		case <-time.After(time.Second * 10):
+		case <-time.After(time.Second * 1000):
 			// 当前用户已超时
 			user.SendMessage("你因超时未发言被提出聊天室\n")
 			// 回收资源
